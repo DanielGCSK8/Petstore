@@ -13,6 +13,10 @@ class PetController extends Controller
     public function index()
     {
         $pets = Pet::all();
+        foreach ($pets as $pet) {
+            $pet->photoUrls = json_decode($pet->photoUrls);
+            $pet->tags = json_decode($pet->tags);
+        }
         return response()->json($pets);
     }
 
