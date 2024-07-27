@@ -15,8 +15,4 @@ class Category extends Model
         'name',
     ];
 
-    public function pets()
-    {
-        return $this->hasMany(Pet::class);
-    }
 }

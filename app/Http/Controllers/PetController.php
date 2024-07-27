@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Pet;
+use App\Models\Category;
+use App\Models\Tag;
 
 class PetController extends Controller
 {
@@ -12,12 +14,15 @@ class PetController extends Controller
      */
     public function index()
     {
-        $pets = Pet::all();
-        foreach ($pets as $pet) {
-            $pet->photoUrls = json_decode($pet->photoUrls);
-            $pet->tags = json_decode($pet->tags);
-        }
-        return response()->json($pets);
+        $pets = Pet::with('category','tags')->get();
+        $category = Category::all();
+        $tags = Tag::all();
+
+        return response()->json([
+            'pets' => $pets,
+            'category' => $category,
+            'tags' => $tags
+        ]);
     }
 
     /**
@@ -30,7 +35,7 @@ class PetController extends Controller
             $pet->category = $request->category;
             $pet->name = $request->name;
             $pet->photoUrls = json_encode($request->photoUrls);
-            $pet->tags = json_encode($request->tags);
+            $pet->tags = $request->tags;
             $pet->status = $request->status;
             $pet->save();
 
@@ -52,7 +57,7 @@ class PetController extends Controller
      */
     public function show(string $id)
     {
-        $pet = Pet::find($id);
+        $pet = Pet::with('category','tags')->find($id);
         if ($pet) {
             return response()->json([
                 'success' => true,

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('category')->constrained('categories')->onDelete('cascade');
             $table->string('name');
             $table->json('photoUrls');
-            $table->json('tags');
+            $table->foreignId('tags')->constrained('tags')->onDelete('cascade');
             $table->enum('status', ['available', 'pending', 'sold']);
             $table->timestamps();
         });

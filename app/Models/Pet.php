@@ -12,11 +12,21 @@ class Pet extends Model
     protected $table = 'pets';
 
     protected $fillable = [
-        'category_id',
+        'category',
         'name',
         'photoUrls',
         'tags',
         'status',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class, 'category');
+    }
+
+    public function tags()
+    {
+        return $this->belongsTo(Tag::class, 'tags');
+    }
 
 }
