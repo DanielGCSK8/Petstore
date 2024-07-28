@@ -35,7 +35,11 @@ class PetController extends Controller
             $pet = new Pet();
             $pet->category = $request->category;
             $pet->name = $request->name;
-            $pet->photoUrls = json_encode($request->photoUrls);
+            if (!is_array($request->photoUrls)) {
+                $pet->photoUrls = json_encode(array_map('trim', explode(',', $request->photoUrls)));
+            } else {
+                $pet->photoUrls = json_encode($request->photoUrls);
+            }
             $pet->tags = $request->tags;
             $pet->status = $request->status;
             $pet->save();
@@ -77,15 +81,28 @@ class PetController extends Controller
 
     public function findByStatus(Request $request)
     {
-        try {
-            $statuses = explode(',', $request->status);
-            $pets = Pet::whereIn('status', $statuses)->get();
+        $validStatuses = ['available', 'pending', 'sold'];
 
+        $statuses = array_map('trim', explode(',', $request->status));
+        $invalidStatuses = array_diff($statuses, $validStatuses);
+
+        if (!empty($invalidStatuses)) {
+            $this->storeApiResponse(400, 'Invalid', 'Invalid statuses');
+            return response()->json([
+                'success' => false,
+                'message' => 'Estados inválidos: ' . implode(', ', $invalidStatuses),
+            ], 400);
+        }
+        try {
+            $statuses = array_map('trim', explode(',', $request->status));
+            $pets = Pet::whereIn('status', $statuses)->get();
+            $this->storeApiResponse(200, 'success', 'Pets');
             return response()->json([
                 'success' => true,
                 'data' => $pets
             ], 200);
         } catch (\Exception $e) {
+            $this->storeApiResponse(500, 'error', 'Error retrieving Pets by statuses');
             return response()->json([
                 'success' => false,
                 'message' => 'Error retrieving Pets by statuses',
@@ -94,25 +111,44 @@ class PetController extends Controller
         }
     }
 
-
     /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $id)
     {
         try {
-            $pet = Pet::findOrFail($id);
-            $pet->category = $request->category;
-            $pet->name = $request->name;
-            $pet->photoUrls = json_encode($request->photoUrls);
-            $pet->tags = $request->tags;
-            $pet->status = $request->status;
-            $pet->save();
-            return response()->json([
-                'success' => true,
-                'data' => $pet
-            ], 200);
+            $pet = Pet::find($id);
+            if ($pet) {
+                $pet->category = $request->category;
+                $pet->name = $request->name;
+
+                if ($request->photoUrls) {
+                    if (!is_array($request->photoUrls)) {
+                        $pet->photoUrls = json_encode(array_map('trim', explode(',', $request->photoUrls)));
+                    } else {
+                        $pet->photoUrls = json_encode($request->photoUrls);
+                    }
+                }
+                if ($request->tags) {
+                    $pet->tags = $request->tags;
+                }
+
+                $pet->status = $request->status;
+                $pet->save();
+                $this->storeApiResponse(200, 'success', 'Pet updated successfully');
+                return response()->json([
+                    'success' => true,
+                    'data' => $pet
+                ], 200);
+            } else {
+                $this->storeApiResponse(404, 'false', 'Pet not found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pet not found'
+                ], 404);
+            }
         } catch (\Exception $e) {
+            $this->storeApiResponse(500, 'error', 'Error updating pet');
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating Pet',
@@ -124,19 +160,34 @@ class PetController extends Controller
     public function updatePet(Request $request)
     {
         try {
-            $pet = Pet::findOrFail($request->id);
-            $pet->category = $request->category;
-            $pet->name = $request->name;
-            $pet->photoUrls = json_encode($request->photoUrls);
-            $pet->tags = $request->tags;
-            $pet->status = $request->status;
-            $pet->save();
+            $pet = Pet::find($request->id);
+            if ($pet) {
+                $pet->category = $request->category;
+                $pet->name = $request->name;
+                if (!is_array($request->photoUrls)) {
+                    $pet->photoUrls = json_encode(array_map('trim', explode(',', $request->photoUrls)));
+                } else {
+                    $pet->photoUrls = json_encode($request->photoUrls);
+                }
+                $pet->tags = $request->tags;
+                $pet->status = $request->status;
+                $pet->save();
 
-            return response()->json([
-                'success' => true,
-                'data' => $pet
-            ], 200);
+                $this->storeApiResponse(200, 'success', 'Pet updated successfully');
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $pet
+                ], 200);
+            } else {
+                $this->storeApiResponse(404, 'false', 'Pet not found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pet not found'
+                ], 404);
+            }
         } catch (\Exception $e) {
+            $this->storeApiResponse(500, 'error', 'Error updating pet');
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating Pet',
@@ -151,7 +202,7 @@ class PetController extends Controller
     public function destroy(Request $request, string $id)
     {
         $apiKey = $request->header('api_key');
-        if (!$apiKey || $apiKey !== 'abc1234') { 
+        if (!$apiKey || $apiKey !== 'abc1234') {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized: Invalid API key'
@@ -159,14 +210,24 @@ class PetController extends Controller
         }
 
         try {
-            $pet = Pet::findOrFail($id);
-            $pet->delete();
+            $pet = Pet::find($id);
+            if ($pet) {
+                $pet->delete();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Pet deleted successfully'
-            ], 200);
+                $this->storeApiResponse(200, 'success', 'Pet deleted successfully');
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Pet deleted successfully'
+                ], 200);
+            } else {
+                $this->storeApiResponse(404, 'false', 'Pet not found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pet not found'
+                ], 404);
+            }
         } catch (\Exception $e) {
+            $this->storeApiResponse(500, 'error', 'Error deleting Pet');
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting Pet',
